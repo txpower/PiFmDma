@@ -42,18 +42,8 @@ size_t length;
 
 // coefficients of the low-pass FIR filter
 float low_pass_fir[FIR_HALF_SIZE];
-
-
-float carrier_38[] = {0.0, 0.8660254037844386, 0.8660254037844388, 1.2246467991473532e-16, -0.8660254037844384, -0.8660254037844386};
-
-float carrier_19[] = {0.0, 0.5, 0.8660254037844386, 1.0, 0.8660254037844388, 0.5, 1.2246467991473532e-16, -0.5, -0.8660254037844384, -1.0, -0.8660254037844386, -0.5};
     
-int phase_38 = 0;
-int phase_19 = 0;
-
-
 float downsample_factor;
-
 
 float *audio_buffer;
 int audio_index = 0;
@@ -104,21 +94,17 @@ int fm_mpx_open(char *filename, size_t len) {
         }
             
         int in_samplerate = sfinfo.samplerate;
-        downsample_factor = 228000. / in_samplerate;
+        downsample_factor = 228000.0 / in_samplerate;
     
         printf("Input: %d Hz, upsampling factor: %.2f\n", in_samplerate, downsample_factor);
 
         channels = sfinfo.channels;
-        if(channels > 1) {
-            printf("%d channels, generating stereo multiplex.\n", channels);
-        } else {
-            printf("1 channel, monophonic operation.\n");
-        }
+        printf("1 channel, monophonic operation.\n");
     
     
         // Create the low-pass FIR filter
-        float cutoff_freq = 15000 * .8;
-        if(in_samplerate/2 < cutoff_freq) cutoff_freq = in_samplerate/2 * .8;
+        float cutoff_freq = 114000;
+        if(in_samplerate/2 < cutoff_freq) cutoff_freq = in_samplerate/2 * 1.0;
     
     
     
@@ -192,15 +178,7 @@ int fm_mpx_get_samples(float *mpx_buffer) {
 
         
         // First store the current sample(s) into the FIR filter's ring buffer
-        if(channels == 0) {
             fir_buffer_mono[fir_index] = 1. * audio_buffer[audio_index];
-        } else {
-            // In stereo operation, generate sum and difference signals
-			fir_buffer_mono[fir_index] = 1.*(
-                audio_buffer[audio_index] + audio_buffer[audio_index+1]);
-			fir_buffer_stereo[fir_index] = 1.*(
-                audio_buffer[audio_index] - audio_buffer[audio_index+1]);
-        }
         fir_index++;
         if(fir_index >= FIR_SIZE) fir_index = 0;
         
@@ -211,7 +189,6 @@ int fm_mpx_get_samples(float *mpx_buffer) {
            the total number of multiplications by a factor of two
         */
         float out_mono = 0;
-        float out_stereo = 0;
         int ifbi = fir_index;  // ifbi = increasing FIR Buffer Index
         int dfbi = fir_index;  // dfbi = decreasing FIR Buffer Index
         for(int fi=0; fi<FIR_HALF_SIZE; fi++) {  // fi = Filter Index
@@ -220,11 +197,6 @@ int fm_mpx_get_samples(float *mpx_buffer) {
             out_mono += 
                 low_pass_fir[fi] * 
                     (fir_buffer_mono[ifbi] + fir_buffer_mono[dfbi]);
-            if(channels > 1) {
-                out_stereo += 
-                    low_pass_fir[fi] * 
-                        (fir_buffer_stereo[ifbi] + fir_buffer_stereo[dfbi]);
-            }
             ifbi++;
             if(ifbi >= FIR_SIZE) ifbi = 0;
         }
@@ -234,16 +206,6 @@ int fm_mpx_get_samples(float *mpx_buffer) {
         mpx_buffer[i] = 
             //mpx_buffer[i] +    // RDS data samples are currently in mpx_buffer
             4.05*out_mono;     // Unmodulated monophonic (or stereo-sum) signal
-            
-        if(channels>1) {
-            mpx_buffer[i] +=
-                4.05 * carrier_38[phase_38] * out_stereo + // Stereo difference signal
-                .83*carrier_19[phase_19];                  // Stereo pilot tone
-
-            phase_19++;
-            phase_38++;
-            if(phase_19 >= 12) phase_19 = 0;
-            if(phase_38 >= 6) phase_38 = 0;
         }
             
 		mpx_buffer[i] *= 1.;
