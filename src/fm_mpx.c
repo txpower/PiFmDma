@@ -206,9 +206,6 @@ int fm_mpx_get_samples(float *mpx_buffer) {
         mpx_buffer[i] = 
             //mpx_buffer[i] +    // RDS data samples are currently in mpx_buffer
             4.05*out_mono;     // Unmodulated monophonic (or stereo-sum) signal
-        }
-            
-		mpx_buffer[i] *= 1.;
 
         audio_pos++;   
         
