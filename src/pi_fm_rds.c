@@ -124,13 +124,18 @@
 #define DMA_CONBLK_AD        (0x04/4)
 #define DMA_DEBUG        (0x20/4)
 
-#define DMA_BASE        0x20007000
+#define BCM2709_BASE 0x3F000000
+#define BCM2708_BASE 0x20000000
+
+unsigned long mem_base;
+
+#define DMA_BASE        mem_base+0x7000
 #define DMA_LEN            0x24
-#define PWM_BASE        0x2020C000
+#define PWM_BASE        mem_base+0x20C000
 #define PWM_LEN            0x28
-#define CLK_BASE            0x20101000
+#define CLK_BASE        mem_base+0x101000
 #define CLK_LEN            0xA8
-#define GPIO_BASE        0x20200000
+#define GPIO_BASE       mem_base+0x200000
 #define GPIO_LEN        0xB4
 
 
@@ -286,7 +291,11 @@ int tx(uint32_t carrier_freq, char *audio_file, float ppm) {
         sa.sa_handler = terminate;
         sigaction(i, &sa, NULL);
     }
-        
+    switch (sysconf(_SC_NPROCESSORS_ONLN)){ 
+      case 1:mem_base=BCM2708_BASE;break; // Raspberry Pi v1
+      case 4:mem_base=BCM2709_BASE;break; // Raspberry Pi v2
+      default: fatal("This device is not supported: unknown CPU\n");
+    }
     dma_reg = map_peripheral(DMA_BASE, DMA_LEN);
     pwm_reg = map_peripheral(PWM_BASE, PWM_LEN);
     clk_reg = map_peripheral(CLK_BASE, CLK_LEN);
