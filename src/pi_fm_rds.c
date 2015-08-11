@@ -166,7 +166,6 @@ unsigned long mem_base;
 
 // The deviation specifies how wide the signal is. Use 25.0 for WBFM
 // (broadcast radio) and about 3.5 for NBFM (walkie-talkie style radio)
-#define DEVIATION        25.0
 
 
 typedef struct {
@@ -225,11 +224,23 @@ fatal(char *fmt, ...)
 {
     va_list ap;
 
+    fprintf(stderr,"ERROR: ");
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     va_end(ap);
     terminate(0);
 }
+
+static void
+warn(char *fmt, ...)
+{
+    va_list ap;
+    fprintf(stderr,"WARNING: ");
+    va_start(ap, fmt);
+    vfprintf(stderr, fmt, ap);
+    va_end(ap);
+}
+
 
 static uint32_t
 mem_virt_to_phys(void *virt)
@@ -278,7 +289,7 @@ map_peripheral(uint32_t base, uint32_t len)
 #define DATA_SIZE 5000
 
 
-int tx(uint32_t carrier_freq, char *audio_file, float ppm) {
+int tx(uint32_t carrier_freq, char *audio_file, float ppm, float deviation) {
     int i, fd, pid;
     char pagemap_fn[64];
 
@@ -459,7 +470,7 @@ int tx(uint32_t carrier_freq, char *audio_file, float ppm) {
                 data_index = 0;
             }
             
-            float dval = data[data_index] * (DEVIATION / 10.);
+            float dval = data[data_index] * (deviation / 10.);
             data_index++;
             data_len--;
 
@@ -486,6 +497,7 @@ int main(int argc, char **argv) {
     char *audio_file = NULL;
     uint32_t carrier_freq = 107900000;
     float ppm = 0;
+    float deviation = 25.0;
     
     
     // Parse command-line arguments
@@ -498,19 +510,22 @@ int main(int argc, char **argv) {
         if((strcmp("-wav", arg)==0 || strcmp("-audio", arg)==0) && param != NULL) {
             i++;
             audio_file = param;
+        } else if(strcmp("-dev", arg)==0 && param != NULL) {
+            i++;
+            deviation = atof(param);
         } else if(strcmp("-freq", arg)==0 && param != NULL) {
             i++;
             carrier_freq = 1e6 * atof(param);
             if(carrier_freq < 87500000 || carrier_freq > 108000000)
-                fatal("Incorrect frequency specification. Must be in megahertz, of the form 107.9\n");
+                warn("Frequency should be in megahertz between 87.5 and 108.0, but is %f MHz\n",atof(param));
         } else if(strcmp("-ppm", arg)==0 && param != NULL) {
             i++;
             ppm = atof(param);
         } else {
             fatal("Unrecognised argument: %s\n"
-            "Syntax: pi_fm_rds [-freq freq] [-audio file] [-ppm ppm_error]\n", arg);
+            "Syntax: pi_fm_rds [-freq freq] [-audio file] [-ppm ppm_error] [-dev deviation]\n", arg);
         }
     }
 	udelay(100000);
-    tx(carrier_freq, audio_file, ppm);
+    tx(carrier_freq, audio_file, ppm, deviation);
 }

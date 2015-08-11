@@ -13,7 +13,6 @@ endif
 app: pi_fm_rds.o fm_mpx.o
 	$(CC) -o pi_fm_dma pi_fm_rds.o fm_mpx.o -lm -lsndfile
 
-
 pi_fm_rds.o: pi_fm_rds.c fm_mpx.h
 	$(CC) $(CFLAGS) pi_fm_rds.c
 
